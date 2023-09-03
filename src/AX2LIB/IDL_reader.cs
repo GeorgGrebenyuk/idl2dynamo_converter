@@ -121,7 +121,11 @@ namespace AX2LIB
                         string temp_str_arg = "";
                         foreach (char ch in arguments_string)
                         {
-                            if (ch == '[') local_descr_start = true;
+                            if (ch == '[') 
+                            {
+                                local_descr_start = true;
+                                local_descr_end = false;
+                            }
                             if (local_descr_start && !local_descr_end) temp_str_descr += ch;
                             if (ch == ']') 
                             {
@@ -129,7 +133,7 @@ namespace AX2LIB
                                 local_descr_end = true;
                                 local_arg_start = true;
                             }
-                            if (local_arg_start)
+                            if (local_arg_start && ch != ']' && ch != ',' && ch != ')')
                             {
                                 temp_str_arg += ch;
                             }
@@ -137,30 +141,37 @@ namespace AX2LIB
                             {
                                 local_arg_end = true;
                             }
-
                             if (local_arg_end)
                             {
                                 //data in [...]
                                 string[] arg_info = new string[] { temp_str_descr };
                                 if (temp_str_descr.Contains(",")) arg_info = temp_str_descr.Split(",");
 
-                                if (arg_info.Length > 1 && arg_info[1].Contains("optional")) are_optional.Add(true);
-                                else are_optional.Add(false);
+
 
                                 //type of argument
-                                string[] arg_type_and_name = temp_str_arg.Split(" ");
-                                args_names.Add(arg_type_and_name[1]);
+                                string[] arg_type_and_name = temp_str_arg.TrimStart().Split(" ");
+                                
                                 var current_type = Get_ArgumentType(arg_type_and_name[0]);
-                                args_types.Add(current_type);
+                                
                                 if (arg_info[0].Contains("out"))
                                 {
                                     component_wrapper.ReturnedValue = current_type;
+                                }
+                                else
+                                {
+                                    args_names.Add(arg_type_and_name[1]);
+                                    args_types.Add(current_type);
+
+                                    if (arg_info.Length > 1 && arg_info[1].Contains("optional")) are_optional.Add(true);
+                                    else are_optional.Add(false);
                                 }
                                 local_descr_end = false;
                                 local_descr_end = false;
                                 local_arg_start = false;
 
                             }
+
                         }
 
                         component_wrapper.OptionalArguments = are_optional.ToArray();
@@ -279,6 +290,7 @@ namespace AX2LIB
             if (IDL_string.Contains("BSTR")) type = COMPONENT_PROTOTYPE.ArgumentTypes.String;
             else if (IDL_string.Contains("VARIANT")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Object;
             else if (IDL_string.Contains("double")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Double;
+            else if (IDL_string.Contains("int")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Int;
             return type;
         }
         private Guid GetGuid(List<string> IDL_DESCRIPTION_BLOCK)
