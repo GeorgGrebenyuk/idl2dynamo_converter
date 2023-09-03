@@ -1,4 +1,6 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
+using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace AX2LIB
 {
@@ -25,168 +27,200 @@ namespace AX2LIB
         {
             this.NET_prototype = new NET_DLL_PROTOTYPE();
             //read library section
-            var IDL_section_library = GetElements(ref this.IDL_file_data)[0];
-            NET_prototype.LIBRARY_INFO = new LIBRARY_INFO();
-            string Name_info;
-            List<string> Inherits_info;
-            ParseName(IDL_section_library.Name, out Name_info, out Inherits_info);
-            NET_prototype.LIBRARY_INFO.Name = Name_info;
-            NET_prototype.LIBRARY_INFO.GUID = GetGuid(IDL_section_library.Description);
-            NET_prototype.LIBRARY_INFO.Description = GetHelpstring(IDL_section_library.Description);
-
-            //read library content
-            //first, read to temp List<string> info about interfaces in that Library
-            bool read_inherits = true;
+            bool start_description_block = false; // '['
+            bool end_description_block = false; // ']'
+            IDL_AREA current_marker = IDL_AREA.IDL_UNKNOWN;
+            List<string> temp_storage_description = new List<string>();
+            List<string> temp_storage_definition = new List<string>();
+            List<string> temp_storage_inherits = new List<string>();
             List<string> lib_interfaces = new List<string>();
-            for (int i = 0; i < IDL_section_library.Content.Count; i++)
+            string temp_element_name;
+            int temp_blocks_counter = 0;
+            NET_prototype.LIBRARY_INFO = new LIBRARY_INFO();
+            CLASS_PROTOTYPE interface_wrapper = new CLASS_PROTOTYPE();
+            COMPONENT_PROTOTYPE component_wrapper = new COMPONENT_PROTOTYPE();
+
+            foreach (string IDL_string in IDL_file_data)
             {
-                string IDL_Content_one_string = IDL_section_library.Content[i];
-                if (IDL_Content_one_string.Contains("interface") && !IDL_Content_one_string.Contains("dispinterface") && read_inherits)
+                string IDL_string_trimmed = IDL_string.TrimStart();
+
+
+                //parse info about library
+                if (IDL_string_trimmed.Contains("library")) 
                 {
-                    string interface_name = IDL_Content_one_string.TrimStart().Split(" ").Last();
+                    current_marker = IDL_AREA.IDL_LIBRARY;
+                    NET_prototype.LIBRARY_INFO.GUID = GetGuid(temp_storage_description);
+                    ParseName(IDL_string_trimmed, out temp_element_name, out temp_storage_inherits);
+                    NET_prototype.LIBRARY_INFO.Name = temp_element_name;
+                    NET_prototype.LIBRARY_INFO.TYPE = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_LIBRARY;
+                    NET_prototype.LIBRARY_INFO.Description = GetHelpstring(temp_storage_description);
+                }
+                if (current_marker == IDL_AREA.IDL_LIBRARY && IDL_string_trimmed.Contains("[")) temp_blocks_counter += 1;
+               
+                if (current_marker == IDL_AREA.IDL_LIBRARY && temp_blocks_counter == 0 &&
+                    IDL_string_trimmed.Contains("interface") && !IDL_string_trimmed.Contains("dispinterface"))
+                {
+                    string interface_name = IDL_string_trimmed.TrimStart().Split(" ").Last();
                     interface_name = interface_name.Substring(0, interface_name.IndexOf(";"));
                     lib_interfaces.Add(interface_name);
+                    lib_interfaces = lib_interfaces.Distinct().ToList();
                 }
-                if (IDL_Content_one_string.Contains("[")) read_inherits = false;
+                //go to other sections
+                if (current_marker == IDL_AREA.IDL_LIBRARY && temp_blocks_counter > 0) current_marker = IDL_AREA.IDL_UNKNOWN; 
+                if (IDL_string_trimmed.Contains("interface") && !IDL_string_trimmed.Contains("dispinterface") && current_marker != IDL_AREA.IDL_LIBRARY) 
+                {
+                    current_marker = IDL_AREA.IDL_INTERFACE;
+                    if (interface_wrapper.Name != null && interface_wrapper.Name.Length > 2) NET_prototype.CLASSES.Add(interface_wrapper);
+                    interface_wrapper = new CLASS_PROTOTYPE();
+                    ParseName(IDL_string_trimmed, out temp_element_name, out temp_storage_inherits);
+                    interface_wrapper.Inherits = temp_storage_inherits.ToArray();
+                    interface_wrapper.Name = temp_element_name;
+                    interface_wrapper.Description = GetHelpstring(temp_storage_description);
+                    //temp_storage_definition.Add(IDL_string.TrimStart());
+                }
+                if (IDL_string_trimmed.Contains("HRESULT")) 
+                {
+                    component_wrapper = new COMPONENT_PROTOTYPE();
+                    temp_storage_definition = new List<string>();
+                    current_marker = IDL_AREA.IDL_HRESULT;
+                    ParseName(IDL_string_trimmed, out temp_element_name, out temp_storage_inherits);
+                    component_wrapper.Name = temp_element_name;
+                    component_wrapper.Description = GetHelpstring(temp_storage_description);
+                    component_wrapper.TYPE = Get_HRESULT_type(temp_storage_description);
+                }
+                if (current_marker == IDL_AREA.IDL_HRESULT) 
+                {
+                    temp_storage_definition.Add(IDL_string_trimmed);
+                    if (IDL_string_trimmed.Contains(";"))
+                    {
+                        current_marker = IDL_AREA.IDL_UNKNOWN;
+                        
+
+                        //parse HRESULT
+                        string arguments_string = string.Join(" ", temp_storage_definition);
+                        arguments_string = arguments_string.Substring(arguments_string.IndexOf("("));
+                        arguments_string = arguments_string.Substring(0, arguments_string.LastIndexOf(")") + 1);
+
+                        bool local_descr_start = false;
+                        bool local_descr_end = false;
+
+                        bool local_arg_start = false;
+                        bool local_arg_end = false;
+
+                        List<bool> are_optional = new List<bool>();
+                        List< COMPONENT_PROTOTYPE.ArgumentTypes> args_types = new List<COMPONENT_PROTOTYPE.ArgumentTypes>();
+                        List<string> args_names = new List<string>();
+
+
+                        string temp_str_descr = "";
+                        string temp_str_arg = "";
+                        foreach (char ch in arguments_string)
+                        {
+                            if (ch == '[') local_descr_start = true;
+                            if (local_descr_start && !local_descr_end) temp_str_descr += ch;
+                            if (ch == ']') 
+                            {
+                                temp_str_descr = temp_str_descr.Replace("[", "").Replace("]", "");
+                                local_descr_end = true;
+                                local_arg_start = true;
+                            }
+                            if (local_arg_start)
+                            {
+                                temp_str_arg += ch;
+                            }
+                            if (local_arg_start && (ch == ',' || ch == ')'))
+                            {
+                                local_arg_end = true;
+                            }
+
+                            if (local_arg_end)
+                            {
+                                //data in [...]
+                                string[] arg_info = new string[] { temp_str_descr };
+                                if (temp_str_descr.Contains(",")) arg_info = temp_str_descr.Split(",");
+
+                                if (arg_info.Length > 1 && arg_info[1].Contains("optional")) are_optional.Add(true);
+                                else are_optional.Add(false);
+
+                                //type of argument
+                                string[] arg_type_and_name = temp_str_arg.Split(" ");
+                                args_names.Add(arg_type_and_name[1]);
+                                var current_type = Get_ArgumentType(arg_type_and_name[0]);
+                                args_types.Add(current_type);
+                                if (arg_info[0].Contains("out"))
+                                {
+                                    component_wrapper.ReturnedValue = current_type;
+                                }
+                                local_descr_end = false;
+                                local_descr_end = false;
+                                local_arg_start = false;
+
+                            }
+                        }
+
+                        component_wrapper.OptionalArguments = are_optional.ToArray();
+                        component_wrapper.ArgumentsNames = args_names.ToArray();
+                        component_wrapper.ArgumentsTypes = args_types.ToArray();
+                        interface_wrapper.Members.Add(component_wrapper);
+                    }
+                }
+
+
+                //get description block in the end because in HRESULT there are same blocks for arguments
+                if (IDL_string_trimmed.Contains("["))
+                {
+                    temp_storage_description = new List<string>();
+                    start_description_block = true;
+                }
+                if (start_description_block && !end_description_block) temp_storage_description.Add(IDL_string_trimmed);
+                if (IDL_string_trimmed.Contains("]")) end_description_block = true;
+
 
 
             }
-
-
-
+            
         }
         #region IDL_STRUCTURE_PARSER
         private enum IDL_AREA : int
         {
-            IDL_DESCRIPTION, //data in [...]
-            IDL_DEFINITION, // data in {...}
-            IDL_MEMBER_DEFINITION //data between 'HRESULT' and ';'
-        }
-        private struct IDL_ELEMENT
-        {
-            public List<string> Description; //Get_IDL_Area(IDL_AREA.IDL_DESCRIPTION)
-            public List<string> Name; //data between Description and Content
-            public List<string> Content; //Get_IDL_Area(IDL_AREA.IDL_MEMBER_DEFINITION or IDL_AREA.IDL_DEFINITION)
-
+            IDL_UNKNOWN,
+            IDL_LIBRARY,
+            IDL_INTERFACE,
+            IDL_HRESULT
         }
         /// <summary>
         /// Get interface info or library info (name, inherits info)
         /// </summary>
         /// <param name="name_string">IDL_ELEMENT.Name</param>
-        private void ParseName(List<string> data, out string Name, out List<string> Inherits)
+        private void ParseName(string data_string, out string Name, out List<string> Inherits)
         {
             Inherits = new List<string>();
             Name = null;
             //In fact,there is only one string in 'data'
-            foreach (string one_string in data)
+            if (data_string.Contains("library") || data_string.Contains("interface") || data_string.Contains("HRESULT"))
             {
-                if (one_string.Contains("library") || one_string.Contains("interface"))
+                if (data_string.Contains("(")) data_string = data_string.Substring(0, data_string.IndexOf("(") - 1);
+                string[] arr = data_string.TrimStart().Split(" ");
+                Name = arr[1];
+
+                if (data_string.Contains(":"))
                 {
-                    string[] arr = one_string.TrimStart().Split(" ");
-                    Name = arr[1];
+                    string inherits_block = data_string.TrimStart().Substring(data_string.TrimStart().IndexOf(":"));
+                    if (inherits_block.Contains("{")) inherits_block = inherits_block.Substring(0, inherits_block.IndexOf("{"));
+                    string[] inherits_data;
+                    if (inherits_block.Contains(",")) inherits_data = inherits_block.Split(",");
+                    else inherits_data = new string[1] { inherits_block };
 
-                    if (one_string.Contains(":"))
-                    {
-                        string inherits_block = one_string.TrimStart().Substring(one_string.TrimStart().IndexOf(":"));
-                        if (inherits_block.Contains("{")) inherits_block = inherits_block.Substring(0, inherits_block.IndexOf("{"));
-                        string[] inherits_data;
-                        if (inherits_block.Contains(",")) inherits_data = inherits_block.Split(",");
-                        else inherits_data = new string[1] { inherits_block };
+                    Inherits = inherits_data.ToList();
+                }
 
-                        Inherits = inherits_data.ToList();
-                    }
-                } 
             }
             if (Name == null)
             {
-                throw new Exception($"Can not parse string {string.Join("\t", data)}");
+                throw new Exception($"Can not parse string {data_string}");
             }
         }
-        private List<IDL_ELEMENT> GetElements(ref List<string> IDL_data)
-        {
-            int lines_counter = 0;
-            List<IDL_ELEMENT> elements = new List<IDL_ELEMENT>();
-
-            IDL_ELEMENT element = GetElement(ref IDL_data, ref lines_counter);
-            void check_and_run()
-            {
-
-            }
-
-
-            return elements;
-        }
-        private IDL_ELEMENT GetElement(ref List<string> IDL_data, ref int IDL_lines_counter)
-        {
-            IDL_ELEMENT element = new IDL_ELEMENT();
-            element.Description = Get_IDL_Area(IDL_AREA.IDL_DESCRIPTION, ref IDL_data, ref IDL_lines_counter);
-            int lines_counter_start = IDL_lines_counter;
-
-            element.Content = Get_IDL_Area(IDL_AREA.IDL_DEFINITION, ref IDL_data, ref IDL_lines_counter);
-
-            element.Name = new List<string>();
-            for (int i = lines_counter_start; i <= IDL_data.Count; i++)
-            {
-                string one_string = IDL_data[i];
-                element.Name.Add(one_string);
-                if (one_string.Contains("{") || one_string.Contains(";")) break;
-            }
-            return element;
-        }
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="type"></param>
-        /// <param name="IDL_data"></param>
-        /// <param name="IDL_lines_counter">Start index of string to read data</param>
-        /// <returns></returns>
-        private List<string> Get_IDL_Area(IDL_AREA type, ref List<string> IDL_data, ref int IDL_lines_counter)
-        {
-            bool first_block = false;
-            bool end_block = false;
-            string first_checking_symbol = "";
-            string end_checking_symbol="";
-
-            switch (type)
-            {
-                case IDL_AREA.IDL_DESCRIPTION:
-                    first_checking_symbol = "[";
-                    end_checking_symbol = "]";
-                    break;
-                case IDL_AREA.IDL_DEFINITION:
-                    first_checking_symbol = "{";
-                    end_checking_symbol = "}";
-                    break;
-                case IDL_AREA.IDL_MEMBER_DEFINITION:
-                    first_checking_symbol = "HRESULT";
-                    end_checking_symbol = ";";
-                    break;
-            }
-
-            List<string> that_text_block = new List<string>();
-            int temp_counter_blocks = 0;
-            //Conter for reader lines of IDL file
-            //int IDL_lines_counter = 0;
-
-            for (int i = IDL_lines_counter; i < IDL_data.Count; i++)
-            {
-                IDL_lines_counter += 1;
-                string current_IDL_line = IDL_data[i];
-                if (current_IDL_line.Contains(first_checking_symbol) && !first_block) first_block = true;
-                //if there is a nested block (f.e. nested interface in global library's content
-                else if (current_IDL_line.Contains(first_checking_symbol) && first_block && !end_block) temp_counter_blocks += 1;
-
-                if (first_block && !end_block) that_text_block.Add(current_IDL_line);
-                if (current_IDL_line.Contains(end_checking_symbol) && temp_counter_blocks == 0 && !end_block)
-                {
-                    end_block = true;
-                    break;
-                }
-                else if (current_IDL_line.Contains(end_checking_symbol) && temp_counter_blocks > 0) temp_counter_blocks -= 1;
-            }
-            //lines_counter = IDL_lines_counter;
-            return that_text_block;
-        }
+        
         /// <summary>
         /// Getting a helpstring's attribute value ot nothing if helpstring no present
         /// </summary>
@@ -204,6 +238,30 @@ namespace AX2LIB
                 }
             }
             return "";
+        }
+        private NET_DLL_PROTOTYPE.NET_TYPE Get_HRESULT_type (List<string> IDL_DESCRIPTION_BLOCK)
+        {
+            string[] arr = IDL_DESCRIPTION_BLOCK[0].Split(",");
+            //is it one-string for all IDL?
+            NET_DLL_PROTOTYPE.NET_TYPE type;
+            if (arr[1].Contains("helpstring")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_VOID;
+            else if (arr[1].Contains("propputref")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_FIELD;
+            else if (arr[1].Contains("propget")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_GET;
+            else if (arr[1].Contains("propput")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_SET;
+            else
+            {
+                type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_UNKNOWN;
+                throw new Exception($"Can not parse HRESULT type {IDL_DESCRIPTION_BLOCK[0]}");
+            }
+            return type;
+        }
+        private COMPONENT_PROTOTYPE.ArgumentTypes Get_ArgumentType(string IDL_string)
+        {
+            COMPONENT_PROTOTYPE.ArgumentTypes type = COMPONENT_PROTOTYPE.ArgumentTypes.Dynamic;
+            if (IDL_string.Contains("BSTR")) type = COMPONENT_PROTOTYPE.ArgumentTypes.String;
+            else if (IDL_string.Contains("VARIANT")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Object;
+            else if (IDL_string.Contains("double")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Double;
+            return type;
         }
         private Guid GetGuid(List<string> IDL_DESCRIPTION_BLOCK)
         {
@@ -223,6 +281,7 @@ namespace AX2LIB
             }
             return guid;
         }
+        //private string GetValueS
         #endregion
     }
 }

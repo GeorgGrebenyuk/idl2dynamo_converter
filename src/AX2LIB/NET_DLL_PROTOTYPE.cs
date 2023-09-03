@@ -14,10 +14,13 @@ namespace AX2LIB
     {
         public enum NET_TYPE : int
         {
+            TYPE_UNKNOWN,//need Debug
             TYPE_LIBRARY,
             TYPE_CLASS,
-            TYPE_FIELD,
-            TYPE_METHOD,
+            TYPE_FIELD, //propputref
+            TYPE_METHOD_VOID, //nothing
+            TYPE_METHOD_GET,//propget
+            TYPE_METHOD_SET,//propput
             TYPE_CONSTRUCTOR,
             TYPE_ENUM // is it need?
         }
@@ -25,13 +28,12 @@ namespace AX2LIB
 
         public List<CLASS_PROTOTYPE> CLASSES { get; internal set; }
     }
+    /// <summary>
+    /// Description of library
+    /// The name of current library and also the name of root namespace without tabs
+    /// </summary>
     public class LIBRARY_INFO : COMMON_PROTOTYPE
     {
-        /// <summary>
-        /// The name of current library and also the name of root namespace without tabs
-        /// </summary>
-        public string Name { get; set; }
-        public string Description { get; set; }
         /// <summary>
         /// Constant type of class
         /// </summary>
@@ -44,17 +46,37 @@ namespace AX2LIB
         /// The version of that COM library
         /// </summary>
         public string VERSION { get; set; }
-
-
     }
     /// <summary>
     /// Wrapper for class content
     /// </summary>
     public class COMPONENT_PROTOTYPE : COMMON_PROTOTYPE
     {
-        public string Description { get; set; }
-        public NET_TYPE TYPE { get; set; }
-        public string Name { get; set; }
+        public enum ArgumentTypes : int
+        {
+            String, //BSTR
+            Object, //VARIANT
+            Dynamic, //any other interface
+            Double, //double или *double
+            Int //int
+        }
+
+        /// <summary>
+        /// System type of each arguments (if exists)
+        /// </summary>
+        public ArgumentTypes[] ArgumentsTypes { get; set; }
+        /// <summary>
+        /// Each argument's name
+        /// </summary>
+        public string[] ArgumentsNames { get; set; }
+        /// <summary>
+        /// Flags, if arguments are optional. In default, false
+        /// </summary>
+        public bool[] OptionalArguments { get; set; }
+        /// <summary>
+        /// The type of returned value (beside cases when NET_TYPE = TYPE_METHOD_VOID)
+        /// </summary>
+        public ArgumentTypes ReturnedValue { get; set; }
     }
     /// <summary>
     /// Wrapper for class
@@ -62,14 +84,6 @@ namespace AX2LIB
 
     public class CLASS_PROTOTYPE : COMMON_PROTOTYPE
     {
-        /// <summary>
-        /// The name of class
-        /// </summary>
-        public string Name { get; set; }
-        public string Description { get; set; }
-        /// <summary>
-        /// Constant type of class
-        /// </summary>
         public override NET_TYPE TYPE { get => NET_TYPE.TYPE_CLASS; set => TYPE = NET_TYPE.TYPE_CLASS; }
         /// <summary>
         /// What interfaces are inherited
