@@ -23,7 +23,7 @@ namespace AX2LIB
             }
             this.IDL_file_data = File.ReadAllLines (path).ToList();
         }
-        private void Start()
+        public void Start()
         {
             this.NET_prototype = new NET_DLL_PROTOTYPE();
             //read library section
@@ -37,6 +37,8 @@ namespace AX2LIB
             string temp_element_name;
             int temp_blocks_counter = 0;
             NET_prototype.LIBRARY_INFO = new LIBRARY_INFO();
+            NET_prototype.LIBRARY_INFO.TYPE = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_LIBRARY;
+            NET_prototype.CLASSES = new List<CLASS_PROTOTYPE>();
             CLASS_PROTOTYPE interface_wrapper = new CLASS_PROTOTYPE();
             COMPONENT_PROTOTYPE component_wrapper = new COMPONENT_PROTOTYPE();
 
@@ -54,6 +56,7 @@ namespace AX2LIB
                     NET_prototype.LIBRARY_INFO.Name = temp_element_name;
                     NET_prototype.LIBRARY_INFO.TYPE = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_LIBRARY;
                     NET_prototype.LIBRARY_INFO.Description = GetHelpstring(temp_storage_description);
+
                 }
                 if (current_marker == IDL_AREA.IDL_LIBRARY && IDL_string_trimmed.Contains("[")) temp_blocks_counter += 1;
                
@@ -67,11 +70,13 @@ namespace AX2LIB
                 }
                 //go to other sections
                 if (current_marker == IDL_AREA.IDL_LIBRARY && temp_blocks_counter > 0) current_marker = IDL_AREA.IDL_UNKNOWN; 
-                if (IDL_string_trimmed.Contains("interface") && !IDL_string_trimmed.Contains("dispinterface") && current_marker != IDL_AREA.IDL_LIBRARY) 
+                if (!IDL_string_trimmed.Contains("helpstring") && IDL_string_trimmed.Contains("interface") && !IDL_string_trimmed.Contains("dispinterface") && current_marker != IDL_AREA.IDL_LIBRARY) 
                 {
                     current_marker = IDL_AREA.IDL_INTERFACE;
                     if (interface_wrapper.Name != null && interface_wrapper.Name.Length > 2) NET_prototype.CLASSES.Add(interface_wrapper);
                     interface_wrapper = new CLASS_PROTOTYPE();
+                    interface_wrapper.TYPE = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_CLASS;
+                    interface_wrapper.Members = new List<COMPONENT_PROTOTYPE>();
                     ParseName(IDL_string_trimmed, out temp_element_name, out temp_storage_inherits);
                     interface_wrapper.Inherits = temp_storage_inherits.ToArray();
                     interface_wrapper.Name = temp_element_name;
@@ -171,6 +176,7 @@ namespace AX2LIB
                 {
                     temp_storage_description = new List<string>();
                     start_description_block = true;
+                    end_description_block = false;
                 }
                 if (start_description_block && !end_description_block) temp_storage_description.Add(IDL_string_trimmed);
                 if (IDL_string_trimmed.Contains("]")) end_description_block = true;
@@ -199,7 +205,7 @@ namespace AX2LIB
             //In fact,there is only one string in 'data'
             if (data_string.Contains("library") || data_string.Contains("interface") || data_string.Contains("HRESULT"))
             {
-                if (data_string.Contains("(")) data_string = data_string.Substring(0, data_string.IndexOf("(") - 1);
+                if (data_string.Contains("(")) data_string = data_string.Substring(0, data_string.IndexOf("("));
                 string[] arr = data_string.TrimStart().Split(" ");
                 Name = arr[1];
 
@@ -207,6 +213,7 @@ namespace AX2LIB
                 {
                     string inherits_block = data_string.TrimStart().Substring(data_string.TrimStart().IndexOf(":"));
                     if (inherits_block.Contains("{")) inherits_block = inherits_block.Substring(0, inherits_block.IndexOf("{"));
+                    inherits_block = inherits_block.Replace(": ", "");
                     string[] inherits_data;
                     if (inherits_block.Contains(",")) inherits_data = inherits_block.Split(",");
                     else inherits_data = new string[1] { inherits_block };
@@ -232,7 +239,7 @@ namespace AX2LIB
             {
                 if (IDL_string.Contains("helpstring"))
                 {
-                    string helpstring_value = IDL_string.Substring(IDL_string.LastIndexOf("("), IDL_string.LastIndexOf(")") - IDL_string.LastIndexOf("("));
+                    string helpstring_value = GetValueInBracets(IDL_string);//IDL_string.Substring(IDL_string.LastIndexOf("("), IDL_string.LastIndexOf(")") - IDL_string.LastIndexOf("("));
                     helpstring_value = helpstring_value.Replace("\"", "");
                     return helpstring_value;
                 }
@@ -241,19 +248,30 @@ namespace AX2LIB
         }
         private NET_DLL_PROTOTYPE.NET_TYPE Get_HRESULT_type (List<string> IDL_DESCRIPTION_BLOCK)
         {
-            string[] arr = IDL_DESCRIPTION_BLOCK[0].Split(",");
-            //is it one-string for all IDL?
+            string need_string = IDL_DESCRIPTION_BLOCK[0];
             NET_DLL_PROTOTYPE.NET_TYPE type;
-            if (arr[1].Contains("helpstring")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_VOID;
-            else if (arr[1].Contains("propputref")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_FIELD;
-            else if (arr[1].Contains("propget")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_GET;
-            else if (arr[1].Contains("propput")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_SET;
+            if (need_string.Contains(","))
+            {
+                string[] arr = IDL_DESCRIPTION_BLOCK[0].Split(",");
+                //is it one-string for all IDL?
+                
+                if (arr[1].Contains("helpstring")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_VOID;
+                else if (arr[1].Contains("propputref")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_FIELD;
+                else if (arr[1].Contains("propget") || arr[1].Contains("vararg")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_GET; //vararg
+                else if (arr[1].Contains("propput")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_SET;
+                else
+                {
+                    type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_UNKNOWN;
+                    throw new Exception($"Can not parse HRESULT type {IDL_DESCRIPTION_BLOCK[0]}");
+                }
+            }
             else
             {
-                type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_UNKNOWN;
-                throw new Exception($"Can not parse HRESULT type {IDL_DESCRIPTION_BLOCK[0]}");
+                type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_VOID;
+                //throw new Exception($"No types and helpstring for element {need_string}");
             }
             return type;
+
         }
         private COMPONENT_PROTOTYPE.ArgumentTypes Get_ArgumentType(string IDL_string)
         {
@@ -270,7 +288,7 @@ namespace AX2LIB
             {
                 if (IDL_string.Contains("uuid"))
                 {
-                    string uuid_value = IDL_string.Substring(IDL_string.LastIndexOf("("), IDL_string.LastIndexOf(")") - IDL_string.LastIndexOf("("));
+                    string uuid_value = GetValueInBracets(IDL_string);
                     //uuid_value = helpstring_value.Replace("\"", "");
                     Guid.TryParse(uuid_value, out guid);
                 }
@@ -281,7 +299,10 @@ namespace AX2LIB
             }
             return guid;
         }
-        //private string GetValueS
+        private string GetValueInBracets(string IDL_string)
+        {
+            return IDL_string.Substring(IDL_string.LastIndexOf("(") + 1, IDL_string.LastIndexOf(")") - IDL_string.LastIndexOf("(") - 1);
+        }
         #endregion
     }
 }

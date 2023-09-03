@@ -35,10 +35,6 @@ namespace AX2LIB
     public class LIBRARY_INFO : COMMON_PROTOTYPE
     {
         /// <summary>
-        /// Constant type of class
-        /// </summary>
-        public override NET_TYPE TYPE { get => NET_TYPE.TYPE_LIBRARY; set => TYPE = NET_TYPE.TYPE_LIBRARY; }
-        /// <summary>
         /// The identificator of that COM library
         /// </summary>
         public Guid GUID { get; set; }
@@ -84,10 +80,6 @@ namespace AX2LIB
 
     public class CLASS_PROTOTYPE : COMMON_PROTOTYPE
     {
-        public override NET_TYPE TYPE { get => NET_TYPE.TYPE_CLASS; set => TYPE = NET_TYPE.TYPE_CLASS; }
-        /// <summary>
-        /// What interfaces are inherited
-        /// </summary>
         public string[] Inherits { get; set; }
         /// <summary>
         /// The content of class
@@ -111,6 +103,6 @@ namespace AX2LIB
         /// <summary>
         /// The type of item
         /// </summary>
-        public virtual NET_TYPE TYPE { get; set; }
+        public NET_TYPE TYPE { get; set; }
     }
 }
