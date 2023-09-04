@@ -111,6 +111,7 @@ namespace AX2LIB
 
                         bool local_arg_start = false;
                         bool local_arg_end = false;
+                        //int once_contains_close_bracet = 0;
 
                         List<bool> are_optional = new List<bool>();
                         List< COMPONENT_PROTOTYPE.ArgumentTypes> args_types = new List<COMPONENT_PROTOTYPE.ArgumentTypes>();
@@ -133,14 +134,21 @@ namespace AX2LIB
                                 local_descr_end = true;
                                 local_arg_start = true;
                             }
-                            if (local_arg_start && ch != ']' && ch != ',' && ch != ')')
+                            //Exception if there is 'SAFEARRAY(VARIANT)' in argument's string
+                            //if (ch == ')' && temp_str_arg.Contains("SAFEARRAY") && once_contains_close_bracet == 0) once_contains_close_bracet = 1;
+                            //else if ((ch == ')' || ch == ',') && temp_str_arg.Contains("SAFEARRAY") && once_contains_close_bracet == 1) once_contains_close_bracet = 2;
+
+                            if (local_arg_start && ch != ']' && ch != ',')
                             {
-                                temp_str_arg += ch;
+                                if ((ch == ')' && temp_str_arg.Contains("SAFEARRAY(")) || (ch != ')' && !temp_str_arg.Contains("SAFEARRAY("))) temp_str_arg += ch;
                             }
                             if (local_arg_start && (ch == ',' || ch == ')'))
                             {
+                                //if (once_contains_close_bracet == 1) continue;
+                                //if (once_contains_close_bracet == 0 || once_contains_close_bracet == 2)
                                 local_arg_end = true;
                             }
+                            if (local_arg_end && temp_str_arg.Contains("SAFEARRAY(")) local_arg_end = false;
                             if (local_arg_end)
                             {
                                 //data in [...]
@@ -169,7 +177,11 @@ namespace AX2LIB
                                 local_descr_end = false;
                                 local_descr_end = false;
                                 local_arg_start = false;
+                                local_arg_end = false;
+                                //once_contains_close_bracet = 0;
 
+                                temp_str_descr = "";
+                                temp_str_arg = "";
                             }
 
                         }
@@ -270,6 +282,7 @@ namespace AX2LIB
                 else if (arr[1].Contains("propputref")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_FIELD;
                 else if (arr[1].Contains("propget") || arr[1].Contains("vararg")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_GET; //vararg
                 else if (arr[1].Contains("propput")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_SET;
+                else if (arr[1].Contains("hidden")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_PRIVATE_VOID;
                 else
                 {
                     type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_UNKNOWN;
@@ -288,9 +301,11 @@ namespace AX2LIB
         {
             COMPONENT_PROTOTYPE.ArgumentTypes type = COMPONENT_PROTOTYPE.ArgumentTypes.Dynamic;
             if (IDL_string.Contains("BSTR")) type = COMPONENT_PROTOTYPE.ArgumentTypes.String;
+            else if (IDL_string.Contains("BOOL")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Bool;
             else if (IDL_string.Contains("VARIANT")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Object;
             else if (IDL_string.Contains("double")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Double;
             else if (IDL_string.Contains("int")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Int;
+            else if (IDL_string.Contains("BOOL")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Bool;
             return type;
         }
         private Guid GetGuid(List<string> IDL_DESCRIPTION_BLOCK)

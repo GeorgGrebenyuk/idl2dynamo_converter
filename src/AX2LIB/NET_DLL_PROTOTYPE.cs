@@ -21,6 +21,7 @@ namespace AX2LIB
             TYPE_METHOD_VOID, //nothing
             TYPE_METHOD_GET,//propget
             TYPE_METHOD_SET,//propput
+            TYPE_METHOD_PRIVATE_VOID, //hidden
             TYPE_CONSTRUCTOR,
             TYPE_ENUM // is it need?
         }
@@ -54,7 +55,8 @@ namespace AX2LIB
             Object, //VARIANT
             Dynamic, //any other interface
             Double, //double или *double
-            Int //int
+            Int, //int
+            Bool //bool
         }
 
         /// <summary>
