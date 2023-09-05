@@ -141,7 +141,7 @@ namespace AX2LIB
 
                         if (class_element.Name == "Item")
                         {
-                            //replace () to []
+                            //replace () to [] when Method's name is 'Item' (IEnumerable)
                             element_instructions = element_instructions.Replace(")", "]").Replace(".Item(", "[");
                         }
 
