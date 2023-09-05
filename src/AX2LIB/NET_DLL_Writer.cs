@@ -1,11 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.SymbolStore;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace AX2LIB
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public class NET_DLL_Writer
     {
         private NET_DLL_PROTOTYPE proptotype;
@@ -52,6 +56,7 @@ namespace AX2LIB
                 //add namespace 
                 cs_content.AppendLine($"namespace {LibName} \r\n" + "{");
                 //add class
+                cs_content.AppendLine(GetComment(class_wrapper.Description, true));
                 cs_content.AppendLine($"{tab}public class {class_name} \r\n" + tab + "{");
                 //add original interface
                 cs_content.AppendLine($"{tab}{tab}public {LibName}.{class_wrapper.Name} _i;");
@@ -87,8 +92,11 @@ namespace AX2LIB
                             string arg_name = class_element.ArgumentsNames[i];
                             var arg_type = class_element.ArgumentsTypes[i];
                             bool is_optional = class_element.OptionalArguments[i];
-                            arguments.Add(arg_type.ToString().ToLower() + " " + arg_name);
-                            arguments_names.Add(arg_name);
+                            bool is_out = class_element.IsOutFlags[i];
+                            string out_info = "";
+                            if (is_out) out_info = "out ";
+                            arguments.Add(out_info + arg_type.ToString().ToLower() + " " + arg_name);
+                            arguments_names.Add(out_info + arg_name);
                         }
                         arguments_string = string.Join(",", arguments);
                         arguments_names_string = string.Join(",", arguments_names);
@@ -111,7 +119,7 @@ namespace AX2LIB
                         }
                         else if (class_element.TYPE == NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_GET)
                         {
-                            element_name = "Get_" + element_name;
+                            element_name = element_name;
                             content_type = "public " + class_element.ReturnedValue.ToString().ToLower();
                             string arguments_names_string2 = $"({arguments_names_string})";
                             if (arguments_names_string.Length < 2) arguments_names_string2 = "";
@@ -134,18 +142,23 @@ namespace AX2LIB
                         if (class_element.Name == "Item")
                         {
                             //replace () to []
-                            element_instructions = element_instructions.Replace("(", "[").Replace(")", "]");
+                            element_instructions = element_instructions.Replace(")", "]").Replace(".Item(", "[");
                         }
 
-                        
-
-                        cs_content.AppendLine(
+                        cs_content.AppendLine(GetComment(class_element.Description, false));
+                        //add get-propperty as =>
+                        if (class_element.TYPE == NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_GET && arguments_string.Length < 2)
+                        {
+                            cs_content.AppendLine(
+                            $"{tab}{tab} {content_type} {element_name} => {element_instructions.Replace("return ", "")}");
+                        }
+                        else cs_content.AppendLine(
                             $"{tab}{tab} {content_type} {element_name}({arguments_string}) " + line_sep +
                             $"{tab}{tab}" + "{" + line_sep +
                             $"{tab}{tab}{tab}" + $"{element_instructions}" + line_sep +
                             $"{tab}{tab}" + "}");
                     }
-                    
+
                 }
 
 
@@ -155,6 +168,24 @@ namespace AX2LIB
                 cs_content.AppendLine("}");
                 File.WriteAllText(Path.Combine(save_path, $"{class_name}.cs"), cs_content.ToString(), Encoding.UTF8);
             }
+
+            //actions with created files
+            foreach (string cs_path in Directory.GetFiles(save_path, "*.cs", SearchOption.TopDirectoryOnly))
+            {
+                string file_name = Path.GetFileName(cs_path);
+                if (file_name == "interface.cs" ||
+                    file_name.Contains("[") || file_name.Contains("]") || file_name.Contains(";") ||
+                    file_name.Contains("(") || file_name.Contains(")")) File.Delete(cs_path);
+            }
+        }
+        private string GetComment(string helpstring, bool is_class)
+        {
+            string tabs;
+            if (is_class) tabs = tab;
+            else tabs = tab + tab;
+            return line_sep + $"{tabs}///<summary>" + line_sep +
+                $"{tabs}///{helpstring}" + line_sep + 
+                $"{tabs}///</summary>";
         }
 
     }

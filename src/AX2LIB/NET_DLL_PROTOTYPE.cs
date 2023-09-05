@@ -75,6 +75,10 @@ namespace AX2LIB
         /// The type of returned value (beside cases when NET_TYPE = TYPE_METHOD_VOID)
         /// </summary>
         public ArgumentTypes ReturnedValue { get; set; }
+        /// <summary>
+        /// Flags, if argument is mark as 'out'
+        /// </summary>
+        public bool[] IsOutFlags { get; set; }
     }
     /// <summary>
     /// Wrapper for class

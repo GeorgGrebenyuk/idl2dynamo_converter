@@ -114,12 +114,14 @@ namespace AX2LIB
                         //int once_contains_close_bracet = 0;
 
                         List<bool> are_optional = new List<bool>();
+                        List<bool> are_out = new List<bool>();
                         List< COMPONENT_PROTOTYPE.ArgumentTypes> args_types = new List<COMPONENT_PROTOTYPE.ArgumentTypes>();
                         List<string> args_names = new List<string>();
 
 
                         string temp_str_descr = "";
                         string temp_str_arg = "";
+
                         foreach (char ch in arguments_string)
                         {
                             if (ch == '[') 
@@ -161,13 +163,17 @@ namespace AX2LIB
                                 string[] arg_type_and_name = temp_str_arg.TrimStart().Split(" ");
                                 
                                 var current_type = Get_ArgumentType(arg_type_and_name[0]);
-                                
-                                if (arg_info[0].Contains("out"))
+                                //bool is_out_argument = false;
+                                if (arg_info[0].Contains("out") && arg_info.Length > 1 && arg_info[1].Contains("retval"))// && arg_info[0].Contains("retval")
                                 {
                                     component_wrapper.ReturnedValue = current_type;
+                                    component_wrapper.TYPE = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_GET;
                                 }
                                 else
                                 {
+                                    if (arg_info[0].Contains("out")) are_out.Add(true);
+                                    else are_out.Add(false);
+
                                     args_names.Add(arg_type_and_name[1]);
                                     args_types.Add(current_type);
 
@@ -186,6 +192,8 @@ namespace AX2LIB
 
                         }
 
+
+                        component_wrapper.IsOutFlags = are_out.ToArray();
                         component_wrapper.OptionalArguments = are_optional.ToArray();
                         component_wrapper.ArgumentsNames = args_names.ToArray();
                         component_wrapper.ArgumentsTypes = args_types.ToArray();
@@ -303,9 +311,12 @@ namespace AX2LIB
             if (IDL_string.Contains("BSTR")) type = COMPONENT_PROTOTYPE.ArgumentTypes.String;
             else if (IDL_string.Contains("BOOL")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Bool;
             else if (IDL_string.Contains("VARIANT")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Object;
+            else if (Char.IsUpper(IDL_string.TrimStart()[0]))
+            {
+                //this is I... (some intrface)
+            }
             else if (IDL_string.Contains("double")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Double;
             else if (IDL_string.Contains("int")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Int;
-            else if (IDL_string.Contains("BOOL")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Bool;
             return type;
         }
         private Guid GetGuid(List<string> IDL_DESCRIPTION_BLOCK)
