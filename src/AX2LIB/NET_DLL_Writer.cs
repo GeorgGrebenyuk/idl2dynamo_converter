@@ -17,7 +17,7 @@ namespace AX2LIB
         /// 
         /// </summary>
         private string save_path;
-        private string tab = $"\t\t";
+        private string tab = $"\t";
         private string line_sep = $"\r\n";
         private string LibName => proptotype.LIBRARY_INFO.Name;
         public NET_DLL_Writer(NET_DLL_PROTOTYPE proptotype, string save_path)
@@ -129,7 +129,7 @@ namespace AX2LIB
                         {
                             content_type = "public void";
                             element_name = "Put_" + element_name;
-                            element_instructions = $"this._i.{class_element.Name}({arguments_names_string});";
+                            element_instructions = $"this._i.{class_element.Name} = {arguments_names_string};";
                         }
                         else if (class_element.TYPE == NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_PRIVATE_VOID)
                         {
@@ -142,7 +142,7 @@ namespace AX2LIB
                         if (class_element.Name == "Item")
                         {
                             //replace () to [] when Method's name is 'Item' (IEnumerable)
-                            element_instructions = element_instructions.Replace(")", "]").Replace(".Item(", "[");
+                            //element_instructions = element_instructions.Replace(")", "]").Replace(".Item(", "[");
                         }
 
                         cs_content.AppendLine(GetComment(class_element.Description, false));
@@ -150,10 +150,10 @@ namespace AX2LIB
                         if (class_element.TYPE == NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_GET && arguments_string.Length < 2)
                         {
                             cs_content.AppendLine(
-                            $"{tab}{tab} {content_type} {element_name} => {element_instructions.Replace("return ", "")}");
+                            $"{tab}{tab}{content_type} {element_name} => {element_instructions.Replace("return ", "")}");
                         }
                         else cs_content.AppendLine(
-                            $"{tab}{tab} {content_type} {element_name}({arguments_string}) " + line_sep +
+                            $"{tab}{tab}{content_type} {element_name}({arguments_string}) " + line_sep +
                             $"{tab}{tab}" + "{" + line_sep +
                             $"{tab}{tab}{tab}" + $"{element_instructions}" + line_sep +
                             $"{tab}{tab}" + "}");
@@ -175,7 +175,7 @@ namespace AX2LIB
                 string file_name = Path.GetFileName(cs_path);
                 if (file_name == "interface.cs" ||
                     file_name.Contains("[") || file_name.Contains("]") || file_name.Contains(";") ||
-                    file_name.Contains("(") || file_name.Contains(")")) File.Delete(cs_path);
+                    file_name.Contains("(") || file_name.Contains(")") || file_name.EndsWith("Ex.cs")) File.Delete(cs_path);
             }
         }
         private string GetComment(string helpstring, bool is_class)
