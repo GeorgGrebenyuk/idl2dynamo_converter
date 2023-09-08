@@ -20,6 +20,7 @@ namespace AX2LIB
         private string tab = $"\t";
         private string line_sep = $"\r\n";
         private string LibName => proptotype.LIBRARY_INFO.Name;
+        private string RootNsName => "Dyn" + LibName;
         public NET_DLL_Writer(NET_DLL_PROTOTYPE proptotype, string save_path)
         {
             this.proptotype = proptotype;
@@ -28,6 +29,7 @@ namespace AX2LIB
         }
         public void Create()
         {
+            //this.LibName = "Dyn" + proptotype.LIBRARY_INFO.Name;
             //first, let's create a new folder in save_path named "root namepsace of Library"
             save_path = Path.Combine(save_path, proptotype.LIBRARY_INFO.Name);
             if (!Directory.Exists(save_path)) Directory.CreateDirectory(save_path);
@@ -45,6 +47,16 @@ namespace AX2LIB
             }
             inherits_info = inherits_info.Distinct().ToList();
 
+            //List of all enum
+            List<string> enums = new List<string>();
+            foreach (CLASS_PROTOTYPE class_wrapper in proptotype.Enumerations)
+            {
+                string enum_name = class_wrapper.Name.TrimStart();
+                if (enum_name.Length > 3) enums.Add(enum_name);
+
+            }
+            enums = enums.Distinct().ToList();
+
             foreach (CLASS_PROTOTYPE class_wrapper in proptotype.CLASSES)
             {
                 StringBuilder cs_content = new StringBuilder();
@@ -54,7 +66,7 @@ namespace AX2LIB
                 /*block of using nsmespaces*/
 
                 //add namespace 
-                cs_content.AppendLine($"namespace {LibName} \r\n" + "{");
+                cs_content.AppendLine($"namespace {RootNsName} \r\n" + "{");
                 //add class
                 cs_content.AppendLine(GetComment(class_wrapper.Description, true));
                 cs_content.AppendLine($"{tab}public class {class_name} \r\n" + tab + "{");
@@ -65,7 +77,7 @@ namespace AX2LIB
                     $"{tab}{tab}internal {class_name}(object {class_name}_object) " + line_sep +
                     $"{tab}{tab}" + "{" + line_sep +
                     $"{tab}{tab}{tab}" + $"this._i = {class_name}_object as {LibName}.{class_wrapper.Name};" + line_sep +
-                    $"{tab}{tab}{tab}" + "if (this._i == null) throw new Exception(\"Invalid casting\");" + line_sep +
+                    $"{tab}{tab}{tab}" + "if (this._i == null) throw new System.Exception(\"Invalid casting\");" + line_sep +
                     $"{tab}{tab}" + "}");
                 if (inherits_info.Contains(class_wrapper.Name))
                 {
@@ -74,7 +86,7 @@ namespace AX2LIB
                     $"{tab}{tab}public {class_name}(dynamic {class_name}_object_to_cast) " + line_sep +
                     $"{tab}{tab}" + "{" + line_sep +
                     $"{tab}{tab}{tab}" + $"this._i = {class_name}_object_to_cast._i as {LibName}.{class_wrapper.Name};" + line_sep +
-                    $"{tab}{tab}{tab}" + "if (this._i == null) throw new Exception(\"Invalid casting\");" + line_sep +
+                    $"{tab}{tab}{tab}" + "if (this._i == null) throw new System.Exception(\"Invalid casting\");" + line_sep +
                     $"{tab}{tab}" + "}");
                 }
                 //add other class content
@@ -90,12 +102,25 @@ namespace AX2LIB
                         for (int i = 0; i < class_element.ArgumentsNames.Length; i++)
                         {
                             string arg_name = class_element.ArgumentsNames[i];
-                            var arg_type = class_element.ArgumentsTypes[i];
+                            var arg_type_raw = class_element.ArgumentsTypes[i];
+                            
+                            string arg_type_source = class_element.ArgumentTypes_Source[i];
+                            string arg_type = null;
+                            foreach (string enum_def in enums)
+                            {
+                                if (arg_type_source.Contains(enum_def)) 
+                                {
+                                    arg_type = $"{LibName}.{enum_def}";
+                                    break;
+                                }
+                            }
+                            if (arg_type == null) arg_type = arg_type_raw.ToString().ToLower();
+
                             bool is_optional = class_element.OptionalArguments[i];
                             bool is_out = class_element.IsOutFlags[i];
                             string out_info = "";
                             if (is_out) out_info = "out ";
-                            arguments.Add(out_info + arg_type.ToString().ToLower() + " " + arg_name);
+                            arguments.Add(out_info + arg_type + " " + arg_name);
                             arguments_names.Add(out_info + arg_name);
                         }
                         arguments_string = string.Join(",", arguments);
@@ -119,7 +144,7 @@ namespace AX2LIB
                         }
                         else if (class_element.TYPE == NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_GET)
                         {
-                            element_name = element_name;
+                            //element_name = element_name;
                             content_type = "public " + class_element.ReturnedValue.ToString().ToLower();
                             string arguments_names_string2 = $"({arguments_names_string})";
                             if (arguments_names_string.Length < 2) arguments_names_string2 = "";

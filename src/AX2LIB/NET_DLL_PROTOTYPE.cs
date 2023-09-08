@@ -28,6 +28,7 @@ namespace AX2LIB
         public LIBRARY_INFO LIBRARY_INFO { get; internal set; }
 
         public List<CLASS_PROTOTYPE> CLASSES { get; internal set; }
+        public List<CLASS_PROTOTYPE> Enumerations { get; internal set; }
     }
     /// <summary>
     /// Description of library
@@ -63,6 +64,10 @@ namespace AX2LIB
         /// System type of each arguments (if exists)
         /// </summary>
         public ArgumentTypes[] ArgumentsTypes { get; set; }
+        /// <summary>
+        /// System type of each arguments (how wrote in IDL source. Need for enum detecting)
+        /// </summary>
+        public string[] ArgumentTypes_Source { get; set; }
         /// <summary>
         /// Each argument's name
         /// </summary>

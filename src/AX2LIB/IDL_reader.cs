@@ -36,9 +36,12 @@ namespace AX2LIB
             List<string> lib_interfaces = new List<string>();
             string temp_element_name;
             int temp_blocks_counter = 0;
+            bool temp_enum_start = false;
+            bool temp_enum_end = false;
             NET_prototype.LIBRARY_INFO = new LIBRARY_INFO();
             NET_prototype.LIBRARY_INFO.TYPE = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_LIBRARY;
             NET_prototype.CLASSES = new List<CLASS_PROTOTYPE>();
+            NET_prototype.Enumerations = new List<CLASS_PROTOTYPE>();
             CLASS_PROTOTYPE interface_wrapper = new CLASS_PROTOTYPE();
             COMPONENT_PROTOTYPE component_wrapper = new COMPONENT_PROTOTYPE();
 
@@ -69,7 +72,21 @@ namespace AX2LIB
                     lib_interfaces = lib_interfaces.Distinct().ToList();
                 }
                 //go to other sections
-                if (current_marker == IDL_AREA.IDL_LIBRARY && temp_blocks_counter > 0) current_marker = IDL_AREA.IDL_UNKNOWN; 
+                if (current_marker == IDL_AREA.IDL_LIBRARY && temp_blocks_counter > 0) current_marker = IDL_AREA.IDL_UNKNOWN;
+
+                if (current_marker != IDL_AREA.IDL_LIBRARY && IDL_string_trimmed.Contains("enum")) temp_enum_start = true;
+                if (temp_enum_start && IDL_string_trimmed.Contains("}"))
+                {
+                    temp_enum_start = false;
+                    string enum_name = IDL_string_trimmed.Substring(IDL_string_trimmed.IndexOf("}") + 1);
+                    enum_name = enum_name.Substring(0, enum_name.IndexOf(';'));
+                    var enum_info = new CLASS_PROTOTYPE();
+                    enum_info.Name = enum_name;
+                    enum_info.TYPE = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_ENUM;
+                    enum_info.Description = "";
+                    NET_prototype.Enumerations.Add(enum_info);
+                }
+                
                 if (!IDL_string_trimmed.Contains("helpstring") && IDL_string_trimmed.Contains("interface") && !IDL_string_trimmed.Contains("dispinterface") && current_marker != IDL_AREA.IDL_LIBRARY) 
                 {
                     current_marker = IDL_AREA.IDL_INTERFACE;
@@ -117,6 +134,7 @@ namespace AX2LIB
                         List<bool> are_out = new List<bool>();
                         List< COMPONENT_PROTOTYPE.ArgumentTypes> args_types = new List<COMPONENT_PROTOTYPE.ArgumentTypes>();
                         List<string> args_names = new List<string>();
+                        List<string> args_types_source = new List<string>();
 
 
                         string temp_str_descr = "";
@@ -176,6 +194,7 @@ namespace AX2LIB
 
                                     args_names.Add(arg_type_and_name[1]);
                                     args_types.Add(current_type);
+                                    args_types_source.Add(temp_str_arg);
 
                                     if (arg_info.Length > 1 && arg_info[1].Contains("optional")) are_optional.Add(true);
                                     else are_optional.Add(false);
@@ -193,6 +212,7 @@ namespace AX2LIB
                         }
 
 
+                        component_wrapper.ArgumentTypes_Source = args_types_source.ToArray();
                         component_wrapper.IsOutFlags = are_out.ToArray();
                         component_wrapper.OptionalArguments = are_optional.ToArray();
                         component_wrapper.ArgumentsNames = args_names.ToArray();
