@@ -77,7 +77,7 @@ namespace AX2LIB
                     $"{tab}{tab}internal {class_name}(object {class_name}_object) " + line_sep +
                     $"{tab}{tab}" + "{" + line_sep +
                     $"{tab}{tab}{tab}" + $"this._i = {class_name}_object as {LibName}.{class_wrapper.Name};" + line_sep +
-                    $"{tab}{tab}{tab}" + "if (this._i == null) throw new System.Exception(\"Invalid casting\");" + line_sep +
+                    $"{tab}{tab}{tab}" + $"if (this._i == null) throw new System.Exception(\"Invalid casting to {class_wrapper.Name}\");" + line_sep +
                     $"{tab}{tab}" + "}");
                 if (inherits_info.Contains(class_wrapper.Name))
                 {
@@ -99,6 +99,7 @@ namespace AX2LIB
                         string arguments_names_string = "";
                         List<string> arguments = new List<string>();
                         List<string> arguments_names = new List<string>();
+                        bool is_opt = false;
                         for (int i = 0; i < class_element.ArgumentsNames.Length; i++)
                         {
                             string arg_name = class_element.ArgumentsNames[i];
@@ -117,6 +118,7 @@ namespace AX2LIB
                             if (arg_type == null) arg_type = arg_type_raw.ToString().ToLower();
 
                             bool is_optional = class_element.OptionalArguments[i];
+                            if (!is_opt) is_optional = true;
                             bool is_out = class_element.IsOutFlags[i];
                             string out_info = "";
                             if (is_out) out_info = "out ";
@@ -177,8 +179,14 @@ namespace AX2LIB
                             cs_content.AppendLine(
                             $"{tab}{tab}{content_type} {element_name} => {element_instructions.Replace("return ", "")}");
                         }
-                        else cs_content.AppendLine(
+                        else if (!is_opt) cs_content.AppendLine(
                             $"{tab}{tab}{content_type} {element_name}({arguments_string}) " + line_sep +
+                            $"{tab}{tab}" + "{" + line_sep +
+                            $"{tab}{tab}{tab}" + $"{element_instructions}" + line_sep +
+                            $"{tab}{tab}" + "}");
+                        //Create a comment, if exist optional arg, get an error in dynamo without dynamic interface
+                        else cs_content.AppendLine(
+                            $"{tab}{tab}{content_type} {element_name}({arguments_string}) //optional_argument" + line_sep +
                             $"{tab}{tab}" + "{" + line_sep +
                             $"{tab}{tab}{tab}" + $"{element_instructions}" + line_sep +
                             $"{tab}{tab}" + "}");

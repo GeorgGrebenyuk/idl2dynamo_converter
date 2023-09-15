@@ -57,7 +57,9 @@ namespace AX2LIB
             Dynamic, //any other interface
             Double, //double или *double
             Int, //int
+            Long, //long
             Bool //bool
+
         }
 
         /// <summary>

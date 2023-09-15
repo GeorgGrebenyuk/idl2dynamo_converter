@@ -8,8 +8,8 @@ namespace AX2LIB
         {
             //E:\Code\NanosoftWork\trunk_API\ru\ModelStudio_COM_API\IDL
             //E:\Code\NanosoftWork\trunk_API\ru\ncX_NCAuto_and_OdaX_docomatic\source\23
-            string dir_path = @"E:\Code\NanosoftWork\trunk_API\ru\ncX_NCAuto_and_OdaX_docomatic\source\23";
-            string save_path = @"C:\Users\Georg\Documents\GitHub\idl2dynamo_converter\src\AXLIB_TestResult";
+            string dir_path = @"E:\Code\NanosoftWork\trunk_API\ru\ModelStudio_COM_API\IDL";
+            string save_path = @"E:\Temp\IDL_PROJECT\MS";
             foreach (string idl_path in Directory.GetFiles(dir_path, "*.IDL", SearchOption.AllDirectories))
             {
                 IDL_reader reader = new IDL_reader(idl_path);

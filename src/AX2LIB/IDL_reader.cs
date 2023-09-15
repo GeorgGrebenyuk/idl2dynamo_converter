@@ -306,7 +306,7 @@ namespace AX2LIB
                 string[] arr = IDL_DESCRIPTION_BLOCK[0].Split(",");
                 //is it one-string for all IDL?
                 
-                if (arr[1].Contains("helpstring")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_VOID;
+                if (arr[1].Contains("helpstring") || arr[1].Contains("helpcontext") || arr[1].Contains("restricted")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_VOID;
                 else if (arr[1].Contains("propputref")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_FIELD;
                 else if (arr[1].Contains("propget") || arr[1].Contains("vararg")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_GET; //vararg
                 else if (arr[1].Contains("propput")) type = NET_DLL_PROTOTYPE.NET_TYPE.TYPE_METHOD_SET;
@@ -337,6 +337,7 @@ namespace AX2LIB
             }
             else if (IDL_string.Contains("double")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Double;
             else if (IDL_string.Contains("int")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Int;
+            else if (IDL_string.Contains("long")) type = COMPONENT_PROTOTYPE.ArgumentTypes.Long;
             return type;
         }
         private Guid GetGuid(List<string> IDL_DESCRIPTION_BLOCK)
