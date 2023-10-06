@@ -7,10 +7,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AX2LIB", "AX2LIB\AX2LIB.csp
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AX2LIB_Runner", "AX2LIB_Runner\AX2LIB_Runner.csproj", "{4EC9D587-1937-46F2-825D-684582D1DB6A}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AXLIB_TestResult", "AXLIB_TestResult\AXLIB_TestResult.csproj", "{7533D557-9823-4170-A163-0FFD45EBFA49}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ncad_test", "ncad_test\ncad_test.csproj", "{BC6A0F0A-A054-44B5-86AB-552F1342A073}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -25,14 +21,6 @@ Global
 		{4EC9D587-1937-46F2-825D-684582D1DB6A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4EC9D587-1937-46F2-825D-684582D1DB6A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4EC9D587-1937-46F2-825D-684582D1DB6A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{7533D557-9823-4170-A163-0FFD45EBFA49}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7533D557-9823-4170-A163-0FFD45EBFA49}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7533D557-9823-4170-A163-0FFD45EBFA49}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7533D557-9823-4170-A163-0FFD45EBFA49}.Release|Any CPU.Build.0 = Release|Any CPU
-		{BC6A0F0A-A054-44B5-86AB-552F1342A073}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{BC6A0F0A-A054-44B5-86AB-552F1342A073}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{BC6A0F0A-A054-44B5-86AB-552F1342A073}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{BC6A0F0A-A054-44B5-86AB-552F1342A073}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
